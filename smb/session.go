@@ -314,6 +314,7 @@ func (s *Session) TreeDisconnect(name string) error {
 	if res.Header.Status != StatusOk {
 		return errors.New("Failed to disconnect from tree: " + StatusMap[res.Header.Status])
 	}
+	delete(s.trees, name)
 
 	s.Debug("TreeDisconnect completed ["+name+"]", nil)
 	return nil
