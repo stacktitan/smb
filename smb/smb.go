@@ -2,6 +2,7 @@ package smb
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/stacktitan/smb/gss"
 	"github.com/stacktitan/smb/ntlmssp"
@@ -58,6 +59,38 @@ const (
 	_ uint16 = iota
 	SecurityModeSigningEnabled
 	SecurityModeSigningRequired
+)
+
+const (
+	_ byte = iota
+	ShareTypeDisk
+	ShareTypePipe
+	ShareTypePrint
+)
+
+const (
+	ShareFlagManualCaching            uint32 = 0x00000000
+	ShareFlagAutoCaching              uint32 = 0x00000010
+	ShareFlagVDOCaching               uint32 = 0x00000020
+	ShareFlagNoCaching                uint32 = 0x00000030
+	ShareFlagDFS                      uint32 = 0x00000001
+	ShareFlagDFSRoot                  uint32 = 0x00000002
+	ShareFlagRestriceExclusiveOpens   uint32 = 0x00000100
+	ShareFlagForceSharedDelete        uint32 = 0x00000200
+	ShareFlagAllowNamespaceCaching    uint32 = 0x00000400
+	ShareFlagAccessBasedDirectoryEnum uint32 = 0x00000800
+	ShareFlagForceLevelIIOplock       uint32 = 0x00001000
+	ShareFlagEnableHashV1             uint32 = 0x00002000
+	ShareFlagEnableHashV2             uint32 = 0x00004000
+	ShareFlagEncryptData              uint32 = 0x00008000
+)
+
+const (
+	ShareCapDFS                    uint32 = 0x00000008
+	ShareCapContinuousAvailability uint32 = 0x00000010
+	ShareCapScaleout               uint32 = 0x00000020
+	ShareCapCluster                uint32 = 0x00000040
+	ShareCapAsymmetric             uint32 = 0x00000080
 )
 
 type Header struct {
@@ -149,6 +182,37 @@ type SessionSetup2Res struct {
 	SecurityBufferOffset uint16 `smb:"offset:SecurityBlob"`
 	SecurityBufferLength uint16 `smb:"len:SecurityBlob"`
 	SecurityBlob         *gss.NegTokenResp
+}
+
+type TreeConnectReq struct {
+	Header
+	StructureSize uint16
+	Reserved      uint16
+	PathOffset    uint16 `smb:"offset:Path"`
+	PathLength    uint16 `smb:"len:Path"`
+	Path          []byte
+}
+
+type TreeConnectRes struct {
+	Header
+	StructureSize uint16
+	ShareType     byte
+	Reserved      byte
+	ShareFlags    uint32
+	Capabilities  uint32
+	MaximalAccess uint32
+}
+
+type TreeDisconnectReq struct {
+	Header
+	StructureSize uint16
+	Reserved      uint16
+}
+
+type TreeDisconnectRes struct {
+	Header
+	StructureSize uint16
+	Reserved      uint16
 }
 
 func newHeader() Header {
@@ -310,4 +374,47 @@ func NewSessionSetup2Res() (SessionSetup2Res, error) {
 		SecurityBlob: &resp,
 	}
 	return ret, nil
+}
+
+// NewTreeConnectReq creates a new TreeConnect message and accepts the share name
+// as input.
+func (s *Session) NewTreeConnectReq(name string) (TreeConnectReq, error) {
+	header := newHeader()
+	header.Command = CommandTreeConnect
+	header.CreditCharge = 1
+	header.MessageID = s.messageID
+	header.SessionID = s.sessionID
+
+	path := fmt.Sprintf("\\\\%s\\%s", s.options.Host, name)
+	return TreeConnectReq{
+		Header:        header,
+		StructureSize: 9,
+		Reserved:      0,
+		PathOffset:    0,
+		PathLength:    0,
+		Path:          encoder.ToUnicode(path),
+	}, nil
+}
+
+func NewTreeConnectRes() (TreeConnectRes, error) {
+	return TreeConnectRes{}, nil
+}
+
+func (s *Session) NewTreeDisconnectReq(treeId uint32) (TreeDisconnectReq, error) {
+	header := newHeader()
+	header.Command = CommandTreeDisconnect
+	header.CreditCharge = 1
+	header.MessageID = s.messageID
+	header.SessionID = s.sessionID
+	header.TreeID = treeId
+
+	return TreeDisconnectReq{
+		Header:        header,
+		StructureSize: 4,
+		Reserved:      0,
+	}, nil
+}
+
+func NewTreeDisconnectRes() (TreeDisconnectRes, error) {
+	return TreeDisconnectRes{}, nil
 }

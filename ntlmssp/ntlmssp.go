@@ -282,9 +282,9 @@ func NewAuthenticate(domain, user, workstation, password string, c Challenge) Au
 			Signature:   []byte(Signature),
 			MessageType: TypeNtLmAuthenticate,
 		},
-		DomainName:  ToUnicode(domain),
-		UserName:    ToUnicode(user),
-		Workstation: ToUnicode(workstation),
+		DomainName:  encoder.ToUnicode(domain),
+		UserName:    encoder.ToUnicode(user),
+		Workstation: encoder.ToUnicode(workstation),
 		NegotiateFlags: FlgNeg56 |
 			FlgNeg128 |
 			FlgNegTargetInfo |

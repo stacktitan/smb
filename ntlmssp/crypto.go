@@ -5,18 +5,19 @@ import (
 	"crypto/md5"
 	"strings"
 
+	"github.com/stacktitan/smb/smb/encoder"
 	"golang.org/x/crypto/md4"
 )
 
 func ntowfv1(pass string) []byte {
 	hash := md4.New()
-	hash.Write(ToUnicode(pass))
+	hash.Write(encoder.ToUnicode(pass))
 	return hash.Sum(nil)
 }
 
 func ntowfv2(pass, user, domain string) []byte {
 	h := hmac.New(md5.New, ntowfv1(pass))
-	h.Write(ToUnicode(strings.ToUpper(user) + domain))
+	h.Write(encoder.ToUnicode(strings.ToUpper(user) + domain))
 	return h.Sum(nil)
 }
 

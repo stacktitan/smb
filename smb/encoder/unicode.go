@@ -1,4 +1,4 @@
-package ntlmssp
+package encoder
 
 import (
 	"bytes"
