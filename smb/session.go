@@ -208,7 +208,16 @@ func (s *Session) NegotiateProtocol() error {
 		return err
 	}
 
-	auth := ntlmssp.NewAuthenticate(s.options.Domain, s.options.User, s.options.Workstation, s.options.Password, challenge)
+	var auth ntlmssp.Authenticate
+	if s.options.Hash != "" {
+		// Hash present, use it for auth
+		s.Debug("Performing hash-based authentication", nil)
+		auth = ntlmssp.NewAuthenticateHash(s.options.Domain, s.options.User, s.options.Workstation, s.options.Hash, challenge)
+	} else {
+		// No hash, use password
+		s.Debug("Performing password-based authentication", nil)
+		auth = ntlmssp.NewAuthenticatePass(s.options.Domain, s.options.User, s.options.Workstation, s.options.Password, challenge)
+	}
 
 	responseToken, err := encoder.Marshal(auth)
 	if err != nil {

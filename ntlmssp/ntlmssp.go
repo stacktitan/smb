@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"time"
 
+	"encoding/hex"
+
 	"github.com/stacktitan/smb/smb/encoder"
 )
 
@@ -239,10 +241,22 @@ func NewChallenge() Challenge {
 	}
 }
 
-func NewAuthenticate(domain, user, workstation, password string, c Challenge) Authenticate {
+func NewAuthenticatePass(domain, user, workstation, password string, c Challenge) Authenticate {
 	// Assumes domain, user, and workstation are not unicode
-	nthash := ntowfv2(password, user, domain)
-	lmhash := lmowfv2(password, user, domain)
+	nthash := Ntowfv2(password, user, domain)
+	lmhash := Lmowfv2(password, user, domain)
+	return newAuthenticate(domain, user, workstation, nthash, lmhash, c)
+}
+
+func NewAuthenticateHash(domain, user, workstation, hash string, c Challenge) Authenticate {
+	// Assumes domain, user, and workstation are not unicode
+	buf := make([]byte, len(hash)/2)
+	hex.Decode(buf, []byte(hash))
+	return newAuthenticate(domain, user, workstation, buf, buf, c)
+}
+
+func newAuthenticate(domain, user, workstation string, nthash, lmhash []byte, c Challenge) Authenticate {
+	// Assumes domain, user, and workstation are not unicode
 	var timestamp []byte
 	for k, av := range *c.TargetInfo {
 		if av.AvID == MsvAvTimestamp {
@@ -271,7 +285,6 @@ func NewAuthenticate(domain, user, workstation, password string, c Challenge) Au
 	}
 	response := ComputeResponseNTLMv2(nthash, lmhash, clientChallenge, serverChallenge, timestamp, w.Bytes())
 
-	//hash := lmowfv2(password, user, domain)
 	h := hmac.New(md5.New, lmhash)
 	h.Write(append(serverChallenge, clientChallenge...))
 	lmChallengeResponse := h.Sum(nil)

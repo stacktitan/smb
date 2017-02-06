@@ -9,20 +9,20 @@ import (
 	"golang.org/x/crypto/md4"
 )
 
-func ntowfv1(pass string) []byte {
+func Ntowfv1(pass string) []byte {
 	hash := md4.New()
 	hash.Write(encoder.ToUnicode(pass))
 	return hash.Sum(nil)
 }
 
-func ntowfv2(pass, user, domain string) []byte {
-	h := hmac.New(md5.New, ntowfv1(pass))
+func Ntowfv2(pass, user, domain string) []byte {
+	h := hmac.New(md5.New, Ntowfv1(pass))
 	h.Write(encoder.ToUnicode(strings.ToUpper(user) + domain))
 	return h.Sum(nil)
 }
 
-func lmowfv2(pass, user, domain string) []byte {
-	return ntowfv2(pass, user, domain)
+func Lmowfv2(pass, user, domain string) []byte {
+	return Ntowfv2(pass, user, domain)
 }
 
 func ComputeResponseNTLMv2(nthash, lmhash, clientChallenge, serverChallenge, timestamp, serverName []byte) []byte {
