@@ -196,7 +196,7 @@ func marshal(v interface{}, meta *Metadata) ([]byte, error) {
 	tf := reflect.TypeOf(v)
 	vf := reflect.ValueOf(v)
 
-	bm, ok := vf.Interface().(BinaryMarshallable)
+	bm, ok := v.(BinaryMarshallable)
 	if ok {
 		// Custom marshallable interface found.
 		buf, err := bm.(BinaryMarshallable).MarshalBinary(meta)
@@ -317,7 +317,7 @@ func unmarshal(buf []byte, v interface{}, meta *Metadata) (interface{}, error) {
 	tf := reflect.TypeOf(v)
 	vf := reflect.ValueOf(v)
 
-	bm, ok := vf.Interface().(BinaryMarshallable)
+	bm, ok := v.(BinaryMarshallable)
 	if ok {
 		// Custom marshallable interface found.
 		if err := bm.(BinaryMarshallable).UnmarshalBinary(buf, meta); err != nil {
