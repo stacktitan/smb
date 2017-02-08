@@ -199,7 +199,7 @@ func marshal(v interface{}, meta *Metadata) ([]byte, error) {
 	bm, ok := v.(BinaryMarshallable)
 	if ok {
 		// Custom marshallable interface found.
-		buf, err := bm.(BinaryMarshallable).MarshalBinary(meta)
+		buf, err := bm.MarshalBinary(meta)
 		if err != nil {
 			return nil, err
 		}
@@ -320,7 +320,7 @@ func unmarshal(buf []byte, v interface{}, meta *Metadata) (interface{}, error) {
 	bm, ok := v.(BinaryMarshallable)
 	if ok {
 		// Custom marshallable interface found.
-		if err := bm.(BinaryMarshallable).UnmarshalBinary(buf, meta); err != nil {
+		if err := bm.UnmarshalBinary(buf, meta); err != nil {
 			return nil, err
 		}
 		return bm, nil
