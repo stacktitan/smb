@@ -23,7 +23,8 @@ func main() {
 		Workstation: "",
 		Password:    "Password123!",
 	}
-	session, err := smb.NewSession(options)
+	debug := false
+	session, err := smb.NewSession(options, debug)
 	if err != nil {
 		log.Fatalln("[!]", err)
 	}
@@ -47,4 +48,3 @@ func main() {
 }
 
 ```
-
