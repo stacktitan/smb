@@ -193,8 +193,8 @@ func Marshal(v interface{}) ([]byte, error) {
 
 func marshal(v interface{}, meta *Metadata) ([]byte, error) {
 	var ret []byte
-	tf := reflect.TypeOf(v)
-	vf := reflect.ValueOf(v)
+	typev := reflect.TypeOf(v)
+	valuev := reflect.ValueOf(v)
 
 	bm, ok := v.(BinaryMarshallable)
 	if ok {
@@ -206,36 +206,36 @@ func marshal(v interface{}, meta *Metadata) ([]byte, error) {
 		return buf, nil
 	}
 
-	if tf.Kind() == reflect.Ptr {
-		vf = reflect.Indirect(reflect.ValueOf(v))
-		tf = vf.Type()
+	if typev.Kind() == reflect.Ptr {
+		valuev = reflect.Indirect(reflect.ValueOf(v))
+		typev = valuev.Type()
 	}
 
 	w := bytes.NewBuffer(ret)
-	switch tf.Kind() {
+	switch typev.Kind() {
 	case reflect.Struct:
 		m := &Metadata{
 			Tags:   &TagMap{},
 			Lens:   make(map[string]uint64),
 			Parent: v,
 		}
-		for j := 0; j < vf.NumField(); j++ {
-			tags, err := parseTags(tf.Field(j))
+		for j := 0; j < valuev.NumField(); j++ {
+			tags, err := parseTags(typev.Field(j))
 			if err != nil {
 				return nil, err
 			}
 			m.Tags = tags
-			buf, err := marshal(vf.Field(j).Interface(), m)
+			buf, err := marshal(valuev.Field(j).Interface(), m)
 			if err != nil {
 				return nil, err
 			}
-			m.Lens[tf.Field(j).Name] = uint64(len(buf))
+			m.Lens[typev.Field(j).Name] = uint64(len(buf))
 			if err := binary.Write(w, binary.LittleEndian, buf); err != nil {
 				return nil, err
 			}
 		}
 	case reflect.Slice, reflect.Array:
-		switch tf.Elem().Kind() {
+		switch typev.Elem().Kind() {
 		case reflect.Uint8:
 			if err := binary.Write(w, binary.LittleEndian, v.([]uint8)); err != nil {
 				return nil, err
@@ -246,11 +246,11 @@ func marshal(v interface{}, meta *Metadata) ([]byte, error) {
 			}
 		}
 	case reflect.Uint8:
-		if err := binary.Write(w, binary.LittleEndian, vf.Interface().(uint8)); err != nil {
+		if err := binary.Write(w, binary.LittleEndian, valuev.Interface().(uint8)); err != nil {
 			return nil, err
 		}
 	case reflect.Uint16:
-		data := vf.Interface().(uint16)
+		data := valuev.Interface().(uint16)
 		if meta != nil && meta.Tags.Has("len") {
 			fieldName, err := meta.Tags.GetString("len")
 			if err != nil {
@@ -277,7 +277,7 @@ func marshal(v interface{}, meta *Metadata) ([]byte, error) {
 			return nil, err
 		}
 	case reflect.Uint32:
-		data := vf.Interface().(uint32)
+		data := valuev.Interface().(uint32)
 		if meta != nil && meta.Tags.Has("len") {
 			fieldName, err := meta.Tags.GetString("len")
 			if err != nil {
@@ -304,18 +304,18 @@ func marshal(v interface{}, meta *Metadata) ([]byte, error) {
 			return nil, err
 		}
 	case reflect.Uint64:
-		if err := binary.Write(w, binary.LittleEndian, vf.Interface().(uint64)); err != nil {
+		if err := binary.Write(w, binary.LittleEndian, valuev.Interface().(uint64)); err != nil {
 			return nil, err
 		}
 	default:
-		return nil, errors.New(fmt.Sprintf("Marshal not implemented for kind: %s", tf.Kind()))
+		return nil, errors.New(fmt.Sprintf("Marshal not implemented for kind: %s", typev.Kind()))
 	}
 	return w.Bytes(), nil
 }
 
 func unmarshal(buf []byte, v interface{}, meta *Metadata) (interface{}, error) {
-	tf := reflect.TypeOf(v)
-	vf := reflect.ValueOf(v)
+	typev := reflect.TypeOf(v)
+	valuev := reflect.ValueOf(v)
 
 	bm, ok := v.(BinaryMarshallable)
 	if ok {
@@ -326,9 +326,9 @@ func unmarshal(buf []byte, v interface{}, meta *Metadata) (interface{}, error) {
 		return bm, nil
 	}
 
-	if tf.Kind() == reflect.Ptr {
-		vf = reflect.ValueOf(v).Elem()
-		tf = vf.Type()
+	if typev.Kind() == reflect.Ptr {
+		valuev = reflect.ValueOf(v).Elem()
+		typev = valuev.Type()
 	}
 
 	if meta == nil {
@@ -343,7 +343,7 @@ func unmarshal(buf []byte, v interface{}, meta *Metadata) (interface{}, error) {
 	}
 
 	r := bytes.NewBuffer(buf)
-	switch tf.Kind() {
+	switch typev.Kind() {
 	case reflect.Struct:
 		m := &Metadata{
 			Tags:       &TagMap{},
@@ -353,24 +353,24 @@ func unmarshal(buf []byte, v interface{}, meta *Metadata) (interface{}, error) {
 			Offsets:    make(map[string]uint64),
 			CurrOffset: 0,
 		}
-		for i := 0; i < tf.NumField(); i++ {
-			m.CurrField = tf.Field(i).Name
-			tags, err := parseTags(tf.Field(i))
+		for i := 0; i < typev.NumField(); i++ {
+			m.CurrField = typev.Field(i).Name
+			tags, err := parseTags(typev.Field(i))
 			if err != nil {
 				return nil, err
 			}
 			m.Tags = tags
 			var data interface{}
-			switch tf.Field(i).Type.Kind() {
+			switch typev.Field(i).Type.Kind() {
 			case reflect.Struct:
-				data, err = unmarshal(buf[m.CurrOffset:], vf.Field(i).Addr().Interface(), m)
+				data, err = unmarshal(buf[m.CurrOffset:], valuev.Field(i).Addr().Interface(), m)
 			default:
-				data, err = unmarshal(buf[m.CurrOffset:], vf.Field(i).Interface(), m)
+				data, err = unmarshal(buf[m.CurrOffset:], valuev.Field(i).Interface(), m)
 			}
 			if err != nil {
 				return nil, err
 			}
-			vf.Field(i).Set(reflect.ValueOf(data))
+			valuev.Field(i).Set(reflect.ValueOf(data))
 		}
 		v = reflect.Indirect(reflect.ValueOf(v)).Interface()
 		meta.CurrOffset += m.CurrOffset
@@ -418,42 +418,42 @@ func unmarshal(buf []byte, v interface{}, meta *Metadata) (interface{}, error) {
 		meta.CurrOffset += uint64(binary.Size(ret))
 		return ret, nil
 	case reflect.Slice, reflect.Array:
-		switch tf.Elem().Kind() {
+		switch typev.Elem().Kind() {
 		case reflect.Uint8:
-			var l, o int
+			var length, offset int
 			var err error
 			if meta.Tags.Has("fixed") {
-				if l, err = meta.Tags.GetInt("fixed"); err != nil {
+				if length, err = meta.Tags.GetInt("fixed"); err != nil {
 					return nil, err
 				}
 				// Fixed length fields advance current offset
-				meta.CurrOffset += uint64(l)
+				meta.CurrOffset += uint64(length)
 			} else {
 				if val, ok := meta.Lens[meta.CurrField]; ok {
-					l = int(val)
+					length = int(val)
 				} else {
 					return nil, errors.New("Variable length field missing length reference in struct: " + meta.CurrField)
 				}
 				if val, ok := meta.Offsets[meta.CurrField]; ok {
-					o = int(val)
+					offset = int(val)
 				} else {
 					// No offset found in map. Use current offset
-					o = int(meta.CurrOffset)
+					offset = int(meta.CurrOffset)
 				}
 				// Variable length data is relative to parent/outer struct. Reset reader to point to beginning of data
-				r = bytes.NewBuffer(meta.ParentBuf[o : o+l])
+				r = bytes.NewBuffer(meta.ParentBuf[offset : offset+length])
 				// Variable length data fields do NOT advance current offset.
 			}
-			data := make([]byte, l)
+			data := make([]byte, length)
 			if err := binary.Read(r, binary.LittleEndian, &data); err != nil {
 				return nil, err
 			}
 			return data, nil
 		case reflect.Uint16:
-			return errors.New("Unmarshal not implemented for slice kind:" + tf.Kind().String()), nil
+			return errors.New("Unmarshal not implemented for slice kind:" + typev.Kind().String()), nil
 		}
 	default:
-		return errors.New("Unmarshal not implemented for kind:" + tf.Kind().String()), nil
+		return errors.New("Unmarshal not implemented for kind:" + typev.Kind().String()), nil
 	}
 
 	return nil, nil
